@@ -1,5 +1,17 @@
 {
   "version": 2,
+  "buildCommand": "prisma generate && prisma migrate deploy",
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "JWT_SECRET": "@jwt_secret",
+    "CORS_ORIGIN": "@cors_origin"
+  },
+  "functions": {
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
   "builds": [
     {
       "src": "api/index.js",
