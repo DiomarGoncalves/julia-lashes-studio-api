@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "prisma generate && prisma migrate deploy",
+  "buildCommand": "npm run build",
   "env": {
     "DATABASE_URL": "@database_url",
     "JWT_SECRET": "@jwt_secret",

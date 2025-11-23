@@ -5,6 +5,7 @@
   "main": "api/index.js",
   "scripts": {
     "dev": "nodemon src/server.js",
+    "postinstall": "prisma generate",
     "start": "node src/server.js",
     "build": "prisma generate && prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev",
