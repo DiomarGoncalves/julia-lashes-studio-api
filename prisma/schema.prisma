@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs    AuditLog[]
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Decimal  @db.Decimal(10,2)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  appointments    Appointment[]
+  serviceImages   ServiceImage[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@index([phone])
+}
+
+model Appointment {
+  id         String   @id @default(cuid())
+  clientId   String
+  serviceId  String
+  date       DateTime // apenas a data (00:00) será considerada na lógica de disponibilidade
+  time       String   // "HH:mm"
+  status     String   @default("scheduled")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client      Client  @relation(fields: [clientId], references: [id])
+  service     Service @relation(fields: [serviceId], references: [id])
+  testimonial Testimonial?
+
+  @@index([date, time])
+}
+
+model Settings {
+  id            String   @id @default(cuid())
+  openingHours  Json     // estrutura por dia da semana
+  socialLinks   Json     // instagram, whatsapp, etc.
+  texts         Json     // textos de home/sobre/etc.
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+/////////////////////
+// Novos modelos
+/////////////////////
+
+model Gallery {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceImages ServiceImage[]
+}
+
+model ServiceImage {
+  id        String   @id @default(cuid())
+  serviceId String
+  galleryId String? 
+  url       String? 
+  alt       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  service Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  gallery Gallery? @relation(fields: [galleryId], references: [id], onDelete: SetNull)
+
+  @@index([serviceId])
+  @@index([galleryId])
+}
+
+model Testimonial {
+  id            String   @id @default(cuid())
+  appointmentId String   @unique
+  clientName    String
+  clientPhone   String
+  rating        Int
+  text          String
+  status        String   @default("pending")
+  uniqueLink    String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([uniqueLink])
+}
