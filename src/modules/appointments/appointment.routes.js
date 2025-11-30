@@ -7,6 +7,46 @@ const { appointmentRateLimiter } = require('../../middlewares/rateLimiter');
 
 const router = express.Router();
 
+/**
+ * Configuração fixa de horários por dia da semana
+ * sunday = 0, monday = 1, ..., saturday = 6
+ *
+ * Se quiser mudar a quantidade de vagas ou os horários,
+ * é só editar aqui.
+ */
+const DAY_CONFIG = {
+  sunday: {
+    closed: true,
+    times: []
+  },
+  monday: {
+    closed: false,
+    // 5 vagas entre 07h e 18h
+    times: ['07:00', '09:30', '12:00', '14:30', '17:00']
+  },
+  tuesday: {
+    closed: false,
+    times: ['07:00', '09:30', '12:00', '14:30', '17:00']
+  },
+  wednesday: {
+    closed: false,
+    times: ['07:00', '09:30', '12:00', '14:30', '17:00']
+  },
+  thursday: {
+    closed: false,
+    times: ['07:00', '09:30', '12:00', '14:30', '17:00']
+  },
+  friday: {
+    closed: false,
+    times: ['07:00', '09:30', '12:00', '14:30', '17:00']
+  },
+  saturday: {
+    closed: false,
+    // 5 vagas entre 09h e 15h
+    times: ['09:00', '10:30', '12:00', '13:30', '15:00']
+  }
+};
+
 // -------- Disponibilidade pública --------
 const availabilitySchema = z.object({
   query: z.object({
@@ -26,30 +66,30 @@ router.get('/availability', validate(availabilitySchema), async (req, res, next)
 
     const dateObj = new Date(date + 'T00:00:00.000Z');
 
+    // Busca agendamentos já existentes para aquele dia/serviço
     const appointments = await prisma.appointment.findMany({
       where: { serviceId, date: dateObj }
     });
 
     const bookedTimes = new Set(appointments.map(a => a.time));
 
-    // Lógica simples de horário de funcionamento (poderia vir de Settings)
-    const openingHour = 9;
-    const closingHour = 18;
+    // Día da semana: 0 = Sunday ... 6 = Saturday
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = dayNames[dateObj.getUTCDay()];
 
-    const availableTimes = [];
-    const duration = service.durationMinutes;
-    for (let hour = openingHour; hour < closingHour; hour++) {
-      for (let minute = 0; minute < 60; minute += duration) {
-        const hh = String(hour).padStart(2, '0');
-        const mm = String(minute).padStart(2, '0');
-        const time = `${hh}:${mm}`;
-        if (!bookedTimes.has(time)) {
-          availableTimes.push(time);
-        }
-      }
+    const config = DAY_CONFIG[dayKey];
+
+    // Se não tiver config ou for dia fechado, não há horários
+    if (!config || config.closed) {
+      return res.json({ date, serviceId, availableTimes: [] });
     }
 
-    res.json({ date, serviceId, availableTimes });
+    const baseTimes = Array.isArray(config.times) ? config.times : [];
+
+    // Filtra apenas horários que ainda não estão ocupados
+    const availableTimes = baseTimes.filter((time) => !bookedTimes.has(time));
+
+    return res.json({ date, serviceId, availableTimes });
   } catch (err) {
     next(err);
   }
@@ -78,6 +118,7 @@ router.post('/', appointmentRateLimiter, validate(publicAppointmentSchema), asyn
 
     const dateObj = new Date(date + 'T00:00:00.000Z');
 
+    // Verifica se horário já está ocupado
     const existing = await prisma.appointment.findFirst({
       where: { serviceId, date: dateObj, time }
     });
@@ -86,6 +127,7 @@ router.post('/', appointmentRateLimiter, validate(publicAppointmentSchema), asyn
       return res.status(409).json({ message: 'Horário já ocupado para este serviço' });
     }
 
+    // Busca/cria cliente pelo telefone
     let client = await prisma.client.findFirst({
       where: { phone }
     });
