@@ -62,14 +62,4 @@ npx prisma migrate dev --name init
 npm run dev
 ```
 
-A API ficará em `http://localhost:4000`.
-
-## Deploy na Vercel
-
-- Fazer deploy deste projeto no GitHub e conectar na Vercel.
-- Configurar as variáveis de ambiente na Vercel:
-  - `DATABASE_URL`
-  - `JWT_SECRET`
-  - `CORS_ORIGIN` (URL do front)
-- A função serverless está em `api/index.js`. Todas as rotas estarão sob `/api/...`.
 
